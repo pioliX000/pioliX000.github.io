@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordle-like Game Solver</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        .game-container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 1.5rem;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .game-header {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .game-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 0.5rem;
+        }
+        .game-subtitle {
+            font-size: 1.25rem;
+            color: #4a5568;
+        }
+        .game-selection button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin: 0.5rem;
+        }
+        .game-selection button:hover {
+            background-color: #3182ce;
+            transform: translateY(-2px);
+        }
+        .game-selection button.selected {
+            background-color: #2b6cb0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .game-area {
+            display: none; /* Hidden by default */
+        }
+        .game-area.active {
+            display: block;
+        }
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .input-group label {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 0.9rem;
+        }
+        .input-group input[type="text"], .input-group select {
+            padding: 0.6rem;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s ease-in-out;
+        }
+        .input-group input[type="text"]:focus, .input-group select:focus {
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+        }
+        .feedback-selector {
+            display: flex;
+            gap: 0.25rem;
+            margin-top: 0.25rem;
+        }
+        .feedback-selector button {
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            border: 1px solid #cbd5e0;
+            background-color: #f7fafc;
+        }
+        .feedback-selector button.selected {
+            font-weight: 600;
+            color: white;
+        }
+        .feedback-selector button.green.selected {
+            background-color: #38a169;
+            border-color: #2f855a;
+        }
+        .feedback-selector button.yellow.selected {
+            background-color: #d69e2e;
+            border-color: #b7791f;
+        }
+        .feedback-selector button.red.selected {
+            background-color: #e53e3e;
+            border-color: #c53030;
+        }
+        .feedback-selector button.blue.selected { /* For numerical higher/lower */
+            background-color: #4299e1;
+            border-color: #3182ce;
+        }
+
+        .solve-button, .reset-button {
+            padding: 0.8rem 2rem;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            width: 100%;
+            margin-top: 1rem;
+        }
+        .solve-button {
+            background-color: #38a169;
+        }
+        .solve-button:hover {
+            background-color: #2f855a;
+            transform: translateY(-2px);
+        }
+        .reset-button {
+            background-color: #e53e3e;
+        }
+        .reset-button:hover {
+            background-color: #c53030;
+            transform: translateY(-2px);
+        }
+
+        .solutions-area {
+            margin-top: 1.5rem;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 1.5rem;
+        }
+        .solutions-area h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #2d3748;
+        }
+        .solution-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.75rem;
+        }
+        .solution-item {
+            background-color: #edf2f7;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #4a5568;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .no-solutions {
+            text-align: center;
+            padding: 1rem;
+            color: #718096;
+            font-style: italic;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .game-container {
+                margin: 1rem;
+                padding: 1rem;
+            }
+            .game-title {
+                font-size: 2rem;
+            }
+            .game-subtitle {
+                font-size: 1rem;
+            }
+            .game-selection button {
+                padding: 0.6rem 1rem;
+                font-size: 0.9rem;
+                margin: 0.3rem;
+            }
+            .input-grid {
+                grid-template-columns: 1fr;
+            }
+            .feedback-selector button {
+                padding: 0.2rem 0.4rem;
+                font-size: 0.7rem;
+            }
+            .solutions-area h3 {
+                font-size: 1.25rem;
+            }
+            .solution-list {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            }
+            .solution-item {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1 class="game-title">Character Attribute Solver</h1>
+            <p class="game-subtitle">Input your Wordle-like feedback to find possible characters!</p>
+        </div>
+
+        <div class="game-selection">
+            <button id="select-league" class="selected">League of Legends</button>
+            <button id="select-onepiece">One Piece</button>
+            <button id="select-pokemon">Pokémon</button>
+        </div>
+
+        <div id="game-area-league" class="game-area active">
+            <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">League of Legends Solver</h2>
+            <div class="input-grid" id="league-input-grid">
+                <!-- Inputs will be dynamically generated here -->
+            </div>
+            <button id="league-solve-button" class="solve-button">Find Solutions</button>
+            <button id="league-reset-button" class="reset-button">Reset</button>
+            <div id="league-solutions-area" class="solutions-area">
+                <h3>Possible Champions:</h3>
+                <div id="league-solution-list" class="solution-list"></div>
+                <p id="league-no-solutions" class="no-solutions" style="display: none;">No solutions found matching the criteria.</p>
+            </div>
+        </div>
+
+        <div id="game-area-onepiece" class="game-area">
+            <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">One Piece Solver</h2>
+            <div class="input-grid" id="onepiece-input-grid">
+                <!-- Inputs will be dynamically generated here -->
+            </div>
+            <button id="onepiece-solve-button" class="solve-button">Find Solutions</button>
+            <button id="onepiece-reset-button" class="reset-button">Reset</button>
+            <div id="onepiece-solutions-area" class="solutions-area">
+                <h3>Possible Characters:</h3>
+                <div id="onepiece-solution-list" class="solution-list"></div>
+                <p id="onepiece-no-solutions" class="no-solutions" style="display: none;">No solutions found matching the criteria.</p>
+            </div>
+        </div>
+
+        <div id="game-area-pokemon" class="game-area">
+            <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">Pokémon Solver</h2>
+            <div class="input-grid" id="pokemon-input-grid">
+                <!-- Inputs will be dynamically generated here -->
+            </div>
+            <button id="pokemon-solve-button" class="solve-button">Find Solutions</button>
+            <button id="pokemon-reset-button" class="reset-button">Reset</button>
+            <div id="pokemon-solutions-area" class="solutions-area">
+                <h3>Possible Pokémon:</h3>
+                <div id="pokemon-solution-list" class="solution-list"></div>
+                <p id="pokemon-no-solutions" class="no-solutions" style="display: none;">No solutions found matching the criteria.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data for the games
+        let leagueData = [];
+        let onePieceData = [];
+        let pokemonData = [];
+        let onePieceArcs = [
+            {from:1,to:7,value:"Romance Dawn"},{from:8,to:21,value:"Orange Town"},{from:22,to:41,value:"Syrup Village"},{from:42,to:68,value:"Baratie"},{from:69,to:95,value:"Arlong Park"},{from:96,to:100,value:"Loguetown"},{from:101,to:105,value:"Reverse Mountain"},{from:106,to:114,value:"Whisky Peak"},{from:115,to:129,value:"Little Garden"},{from:130,to:154,value:"Drum Island"},{from:155,to:217,value:"Arabasta"},{from:218,to:236,value:"Jaya"},{from:237,to:302,value:"Skypiea"},{from:303,to:321,value:"Long Ring\nLong Land"},{from:322,to:374,value:"Water 7"},{from:375,to:430,value:"Enies Lobby"},{from:431,to:441,value:"Post-Enies Lobby"},{from:442,to:489,value:"Thriller Bark"},{from:490,to:513,value:"Sabaody Archipelago"},{from:514,to:524,value:"Amazon Lily"},{from:525,to:549,value:"Impel Down"},{from:550,to:580,value:"Marineford"},{from:581,to:597,value:"Post-War"},{from:598,to:602,value:"Return to Sabaody"},{from:603,to:653,value:"Fish-Man Island"},{from:654,to:699,value:"Punk Hazard"},{from:700,to:801,value:"Dressrosa"},{from:802,to:824,value:"Zou"},{from:825,to:902,value:"Whole Cake Island"},{from:903,to:908,value:"Levely"},{from:909,to:1057,value:"Wano Country"},{from:1058,to:9999,value:"Final"}
+        ];
+
+        // Define attributes for each game
+        const gameAttributes = {
+            league: [
+                { id: 'championName', label: 'Champion Name', type: 'string', key: 'championName' },
+                { id: 'gender', label: 'Gender', type: 'string', key: 'gender', options: ['Male', 'Female', 'Other'] },
+                { id: 'positions', label: 'Position(s)', type: 'array-string', key: 'positions', options: ['Top', 'Jungle', 'Middle', 'Bottom', 'Support'] },
+                { id: 'species', label: 'Species', type: 'array-string', key: 'species' },
+                { id: 'resource', label: 'Resource', type: 'string', key: 'resource', options: ['Mana', 'Manaless', 'Energy', 'Rage', 'Courage', 'Health costs', 'Shield', 'Fury', 'Bloodthirst', 'Flow'] },
+                { id: 'range_type', label: 'Range Type', type: 'array-string', key: 'range_type', options: ['Melee', 'Ranged'] },
+                { id: 'regions', label: 'Region(s)', type: 'array-string', key: 'regions' },
+                { id: 'release_date', label: 'Release Year', type: 'number', key: 'release_date' }
+            ],
+            onepiece: [
+                { id: 'championName', label: 'Character Name', type: 'string', key: 'championName' },
+                { id: 'gender', label: 'Gender', type: 'string', key: 'gender', options: ['Male', 'Female'] },
+                { id: 'affiliation', label: 'Affiliation', type: 'string', key: 'affiliation' },
+                { id: 'devilFruitName', label: 'Devil Fruit', type: 'string', key: 'devilFruitName' },
+                { id: 'haki', label: 'Haki', type: 'array-string', key: 'haki', options: ['Conqueror', 'Observation', 'Armament', 'None'] },
+                { id: 'bounty', label: 'Last Bounty', type: 'number', key: 'bounty' },
+                { id: 'height', label: 'Height (cm)', type: 'number', key: 'height' },
+                { id: 'origin', label: 'Origin', type: 'string', key: 'origin' },
+                { id: 'firstArc', label: 'First Arc', type: 'string', key: 'debut', options: onePieceArcs.map(arc => arc.value) } // Updated to use arc names
+            ],
+            pokemon: [
+                { id: 'championName', label: 'Pokémon Name', type: 'string', key: 'championName' },
+                { id: 'type1', label: 'Type 1', type: 'string', key: 'type1', options: ['Grass', 'Poison', 'Fire', 'Flying', 'Water', 'Bug', 'Normal', 'Electric', 'Ground', 'Psychic', 'Fighting', 'Rock', 'Ice', 'Ghost', 'Dragon'] },
+                { id: 'type2', label: 'Type 2', type: 'string', key: 'type2', options: ['None', 'Poison', 'Flying', 'Grass', 'Electric', 'Ground', 'Psychic', 'Fighting', 'Rock', 'Ice', 'Ghost', 'Dragon'] },
+                { id: 'habitat', label: 'Habitat', type: 'string', key: 'habitat', options: ['Grassland', 'Mountain', 'Waters-edge', 'Forest', 'Cave', 'Urban', 'Sea', 'Rare'] },
+                { id: 'color', label: 'Color(s)', type: 'array-string', key: 'color', options: ['Green', 'Orange', 'Red', 'Blue', 'White', 'Purple', 'Brown', 'Yellow', 'Black', 'Gray', 'Pink'] },
+                { id: 'evolutionStage', label: 'Evolution Stage', type: 'number', key: 'evolutionStage' },
+                { id: 'height', label: 'Height (m)', type: 'number', key: 'height' },
+                { id: 'weight', label: 'Weight (kg)', type: 'number', key: 'weight' }
+            ]
+        };
+
+        // DOM Elements
+        const selectLeagueButton = document.getElementById('select-league');
+        const selectOnePieceButton = document.getElementById('select-onepiece');
+        const selectPokemonButton = document.getElementById('select-pokemon');
+
+        const gameAreaLeague = document.getElementById('game-area-league');
+        const gameAreaOnePiece = document.getElementById('game-area-onepiece');
+        const gameAreaPokemon = document.getElementById('game-area-pokemon');
+
+        const leagueInputGrid = document.getElementById('league-input-grid');
+        const onePieceInputGrid = document.getElementById('onepiece-input-grid');
+        const pokemonInputGrid = document.getElementById('pokemon-input-grid');
+
+        const leagueSolveButton = document.getElementById('league-solve-button');
+        const onePieceSolveButton = document.getElementById('onepiece-solve-button');
+        const pokemonSolveButton = document.getElementById('pokemon-solve-button');
+
+        const leagueResetButton = document.getElementById('league-reset-button');
+        const onePieceResetButton = document.getElementById('onepiece-reset-button');
+        const pokemonResetButton = document.getElementById('pokemon-reset-button');
+
+        const leagueSolutionList = document.getElementById('league-solution-list');
+        const onePieceSolutionList = document.getElementById('onepiece-solution-list');
+        const pokemonSolutionList = document.getElementById('pokemon-solution-list');
+
+        const leagueNoSolutions = document.getElementById('league-no-solutions');
+        const onePieceNoSolutions = document.getElementById('onepiece-no-solutions');
+        const pokemonNoSolutions = document.getElementById('pokemon-no-solutions');
+
+        let currentActiveGame = 'league';
+
+        // Function to load data
+        async function loadData() {
+            try {
+                const leagueResponse = await fetch('league.json');
+                leagueData = await leagueResponse.json();
+
+                const onePieceResponse = await fetch('op.json');
+                onePieceData = await onePieceResponse.json();
+
+                // Handle pokemon data which might be a sequence of JSON objects, not a single array
+                const pokemonText = await (await fetch('poke.json')).text();
+                // Wrap the text in an array if it's not already one (e.g., if it starts with '{' instead of '[')
+                // This is a robust way to handle the provided malformed JSON for poke.json
+                if (pokemonText.trim().startsWith('{')) {
+                    pokemonData = JSON.parse(`[${pokemonText}]`);
+                } else {
+                    pokemonData = JSON.parse(pokemonText);
+                }
+
+                // Adjust Pokémon height and weight by dividing by 10
+                pokemonData = pokemonData.map(pokemon => ({
+                    ...pokemon,
+                    height: pokemon.height / 10, // Convert from decimeters to meters
+                    weight: pokemon.weight / 10 // Convert from hectograms to kilograms
+                }));
+
+
+                console.log('Data loaded successfully!');
+                initGameUI('league'); // Initialize UI for League game by default
+            } catch (error) {
+                console.error('Error loading data:', error);
+                // Display an error message to the user in all game areas
+                document.querySelectorAll('.message-box').forEach(box => {
+                    box.textContent = 'Failed to load game data. Please try again later.';
+                    box.classList.add('lose');
+                    box.style.display = 'block';
+                });
+                // Disable all buttons if data loading fails
+                document.querySelectorAll('button.solve-button, button.reset-button').forEach(btn => btn.disabled = true);
+            }
+        }
+
+        // Helper to normalize strings for comparison
+        function normalizeString(str) {
+            return String(str).toLowerCase().trim();
+        }
+
+        // Helper to compare arrays (order-independent) for 'green' feedback
+        function compareArrays(arr1, arr2) {
+            if (!arr1 && !arr2) return true;
+            if (!arr1 || !arr2) return false;
+            if (arr1.length !== arr2.length) return false;
+            const sortedArr1 = [...arr1].map(normalizeString).sort();
+            const sortedArr2 = [...arr2].map(normalizeString).sort();
+            for (let i = 0; i < sortedArr1.length; i++) {
+                if (sortedArr1[i] !== sortedArr2[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Helper to check if an array contains any of the guessed values for 'yellow'/'red' feedback
+        function arrayContainsAny(targetArray, guessArray) {
+            if (!targetArray || !guessArray) return false;
+            const normalizedTarget = targetArray.map(normalizeString);
+            const normalizedGuess = guessArray.map(normalizeString);
+            return normalizedGuess.some(guessItem => normalizedTarget.includes(guessItem));
+        }
+
+        // Helper to get One Piece arc name from chapter number
+        function getArcNameByChapter(chapter) {
+            const arc = onePieceArcs.find(a => chapter >= a.from && chapter <= a.to);
+            return arc ? arc.value : 'Unknown Arc';
+        }
+
+        // Function to generate input fields for a given game
+        function generateInputFields(gameType) {
+            const attributes = gameAttributes[gameType];
+            const inputGrid = document.getElementById(`${gameType}-input-grid`);
+            inputGrid.innerHTML = ''; // Clear previous inputs
+
+            attributes.forEach(attr => {
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'input-group';
+
+                const label = document.createElement('label');
+                label.htmlFor = `${gameType}-${attr.id}-input`;
+                label.textContent = `${attr.label}:`;
+                inputGroup.appendChild(label);
+
+                let inputElement;
+                // If it's an array-string type, it should be a text input for comma-separated values
+                if (attr.type === 'array-string') {
+                    inputElement = document.createElement('input');
+                    inputElement.type = 'text';
+                    inputElement.id = `${gameType}-${attr.id}-input`;
+                    inputElement.name = `${attr.id}`;
+                    inputElement.placeholder = `Enter ${attr.label} (comma-separated)`;
+                } else if (attr.options) {
+                    inputElement = document.createElement('select');
+                    inputElement.id = `${gameType}-${attr.id}-input`;
+                    inputElement.name = `${attr.id}`;
+                    const defaultOption = document.createElement('option');
+                    defaultOption.value = '';
+                    defaultOption.textContent = 'Select an option';
+                    inputElement.appendChild(defaultOption);
+                    attr.options.forEach(option => {
+                        const opt = document.createElement('option');
+                        opt.value = option;
+                        opt.textContent = option;
+                        inputElement.appendChild(opt);
+                    });
+                } else {
+                    inputElement = document.createElement('input');
+                    inputElement.type = 'text';
+                    inputElement.id = `${gameType}-${attr.id}-input`;
+                    inputElement.name = `${attr.id}`;
+                    inputElement.placeholder = `Enter ${attr.label}`;
+                }
+                inputGroup.appendChild(inputElement);
+
+                // Add feedback selector for each attribute
+                const feedbackSelector = document.createElement('div');
+                feedbackSelector.className = 'feedback-selector';
+                feedbackSelector.setAttribute('data-attribute', attr.id);
+                feedbackSelector.setAttribute('data-game', gameType);
+
+                const greenBtn = document.createElement('button');
+                greenBtn.textContent = 'Green';
+                greenBtn.className = 'green';
+                greenBtn.setAttribute('data-feedback', 'green');
+
+                const yellowBtn = document.createElement('button');
+                yellowBtn.textContent = 'Yellow';
+                yellowBtn.className = 'yellow';
+                yellowBtn.setAttribute('data-feedback', 'yellow');
+
+                const redBtn = document.createElement('button');
+                redBtn.textContent = 'Red';
+                redBtn.className = 'red';
+                redBtn.setAttribute('data-feedback', 'red');
+
+                feedbackSelector.appendChild(greenBtn);
+                feedbackSelector.appendChild(yellowBtn);
+                feedbackSelector.appendChild(redBtn);
+
+                // Add Higher/Lower buttons for number types AND for the specific 'firstArc' attribute
+                if (attr.type === 'number' || attr.id === 'firstArc') {
+                    const higherBtn = document.createElement('button');
+                    higherBtn.textContent = 'Higher';
+                    higherBtn.className = 'blue';
+                    higherBtn.setAttribute('data-feedback', 'higher');
+
+                    const lowerBtn = document.createElement('button');
+                    lowerBtn.textContent = 'Lower';
+                    lowerBtn.className = 'blue';
+                    lowerBtn.setAttribute('data-feedback', 'lower');
+
+                    feedbackSelector.appendChild(higherBtn);
+                    feedbackSelector.appendChild(lowerBtn);
+                }
+
+                inputGroup.appendChild(feedbackSelector);
+                inputGrid.appendChild(inputGroup);
+
+                // Add event listener for feedback buttons
+                feedbackSelector.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const currentFeedback = e.target.getAttribute('data-feedback');
+                        feedbackSelector.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+                        e.target.classList.add('selected');
+                        // Store the selected feedback
+                        inputElement.setAttribute('data-selected-feedback', currentFeedback);
+                    });
+                });
+            });
+        }
+
+        // Function to switch active game area
+        function switchGame(gameType) {
+            currentActiveGame = gameType;
+            document.querySelectorAll('.game-area').forEach(area => area.classList.remove('active'));
+            document.getElementById(`game-area-${gameType}`).classList.add('active');
+
+            document.querySelectorAll('.game-selection button').forEach(button => button.classList.remove('selected'));
+            document.getElementById(`select-${gameType}`).classList.add('selected');
+
+            generateInputFields(gameType); // Regenerate inputs for the selected game
+            resetGame(gameType); // Reset the game state for the newly selected game
+        }
+
+        // Initialize UI for a specific game (called after data load)
+        function initGameUI(gameType) {
+            generateInputFields(gameType);
+            resetGame(gameType);
+        }
+
+        // Reset game state for a specific game
+        function resetGame(gameType) {
+            const inputGrid = document.getElementById(`${gameType}-input-grid`);
+            inputGrid.querySelectorAll('input[type="text"], select').forEach(input => {
+                input.value = '';
+                input.removeAttribute('data-selected-feedback');
+            });
+            inputGrid.querySelectorAll('.feedback-selector button').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+
+            const solutionList = document.getElementById(`${gameType}-solution-list`);
+            solutionList.innerHTML = '';
+            document.getElementById(`${gameType}-no-solutions`).style.display = 'none';
+        }
+
+        // Solve logic
+        function solveGame(gameType) {
+            const currentData = {
+                league: leagueData,
+                onepiece: onePieceData,
+                pokemon: pokemonData
+            }[gameType];
+
+            const attributes = gameAttributes[gameType];
+            const inputGrid = document.getElementById(`${gameType}-input-grid`);
+
+            let filters = [];
+
+            attributes.forEach(attr => {
+                const inputElement = document.getElementById(`${gameType}-${attr.id}-input`);
+                const guessValue = inputElement.value;
+                const feedback = inputElement.getAttribute('data-selected-feedback');
+
+                if (guessValue && feedback) {
+                    filters.push({
+                        key: attr.key,
+                        value: guessValue,
+                        feedback: feedback,
+                        type: attr.type,
+                        id: attr.id // Store the id to handle 'firstArc' specifically
+                    });
+                }
+            });
+
+            let possibleSolutions = [...currentData];
+
+            filters.forEach(filter => {
+                possibleSolutions = possibleSolutions.filter(item => {
+                    let targetValue = item[filter.key];
+
+                    const normalizedGuess = normalizeString(filter.value);
+
+                    // Special handling for One Piece 'firstArc' (which uses 'debut' key)
+                    if (gameType === 'onepiece' && filter.id === 'firstArc') {
+                        const targetChapter = item.debut; // This is the chapter number from the character data
+                        const guessedArc = onePieceArcs.find(a => normalizeString(a.value) === normalizedGuess);
+
+                        if (!guessedArc) {
+                            return false; // If the guessed arc name isn't found, it's not a match
+                        }
+
+                        const guessedArcFromChapter = guessedArc.from;
+                        const guessedArcToChapter = guessedArc.to;
+
+                        if (filter.feedback === 'green') {
+                            return targetChapter >= guessedArcFromChapter && targetChapter <= guessedArcToChapter;
+                        } else if (filter.feedback === 'higher') {
+                            // Character's debut chapter is in an arc that starts AFTER the guessed arc's end chapter
+                            return targetChapter > guessedArcToChapter;
+                        } else if (filter.feedback === 'lower') {
+                            // Character's debut chapter is in an arc that ends BEFORE the guessed arc's start chapter
+                            return targetChapter < guessedArcFromChapter;
+                        } else if (filter.feedback === 'red') {
+                            // Not in this arc, and not higher/lower
+                            return !(targetChapter >= guessedArcFromChapter && targetChapter <= guessedArcToChapter);
+                        }
+                    } else if (filter.type === 'string') {
+                        const normalizedTarget = normalizeString(targetValue);
+                        if (filter.feedback === 'green') {
+                            return normalizedTarget === normalizedGuess;
+                        } else if (filter.feedback === 'yellow') {
+                            // For single strings, yellow means the guess is a substring or similar
+                            // For simplicity, we'll treat it as 'contains' but not exact
+                            return normalizedTarget.includes(normalizedGuess) && normalizedTarget !== normalizedGuess;
+                        } else if (filter.feedback === 'red') {
+                            return normalizedTarget !== normalizedGuess;
+                        }
+                    } else if (filter.type === 'array-string') {
+                        // For array-string, the input is comma-separated
+                        const guessArray = filter.value.split(',').map(normalizeString).filter(s => s.length > 0);
+                        const targetArray = Array.isArray(targetValue) ? targetValue.map(normalizeString) : [normalizeString(targetValue)];
+
+                        if (filter.feedback === 'green') {
+                            // All guessed values must be in target, and target must only contain guessed values
+                            return compareArrays(targetArray, guessArray);
+                        } else if (filter.feedback === 'yellow') {
+                            // At least one guessed value is in target, but not all, or target has more
+                            return arrayContainsAny(targetArray, guessArray) && !compareArrays(targetArray, guessArray);
+                        } else if (filter.feedback === 'red') {
+                            // None of the guessed values are in target
+                            return !arrayContainsAny(targetArray, guessArray);
+                        }
+                    } else if (filter.type === 'number') {
+                        const targetNum = parseFloat(targetValue);
+                        const guessNum = parseFloat(filter.value);
+
+                        if (isNaN(targetNum) || isNaN(guessNum)) {
+                            console.warn(`Invalid number for comparison: target=${targetValue}, guess=${filter.value}`);
+                            return false; // Exclude if numbers are invalid
+                        }
+
+                        if (filter.feedback === 'green') {
+                            return targetNum === guessNum;
+                        } else if (filter.feedback === 'higher') {
+                            return targetNum > guessNum;
+                        } else if (filter.feedback === 'lower') {
+                            return targetNum < guessNum;
+                        } else if (filter.feedback === 'red') {
+                            return targetNum !== guessNum; // Red for numbers means not exact
+                        }
+                    }
+                    return true; // If no feedback or unknown type, don't filter
+                });
+            });
+
+            displaySolutions(gameType, possibleSolutions);
+        }
+
+        // Display solutions
+        function displaySolutions(gameType, solutions) {
+            const solutionList = document.getElementById(`${gameType}-solution-list`);
+            const noSolutionsMessage = document.getElementById(`${gameType}-no-solutions`);
+            solutionList.innerHTML = ''; // Clear previous solutions
+
+            if (solutions.length === 0) {
+                noSolutionsMessage.style.display = 'block';
+            } else {
+                noSolutionsMessage.style.display = 'none';
+                solutions.forEach(solution => {
+                    const solutionItem = document.createElement('div');
+                    solutionItem.className = 'solution-item';
+                    solutionItem.textContent = solution.championName; // All datasets have 'championName'
+                    solutionList.appendChild(solutionItem);
+                });
+            }
+        }
+
+        // Event Listeners for game selection buttons
+        selectLeagueButton.addEventListener('click', () => switchGame('league'));
+        selectOnePieceButton.addEventListener('click', () => switchGame('onepiece'));
+        selectPokemonButton.addEventListener('click', () => switchGame('pokemon'));
+
+        // Event Listeners for solve buttons
+        leagueSolveButton.addEventListener('click', () => solveGame('league'));
+        onePieceSolveButton.addEventListener('click', () => solveGame('onepiece'));
+        pokemonSolveButton.addEventListener('click', () => solveGame('pokemon'));
+
+        // Event Listeners for reset buttons
+        leagueResetButton.addEventListener('click', () => resetGame('league'));
+        onePieceResetButton.addEventListener('click', () => resetGame('onepiece'));
+        pokemonResetButton.addEventListener('click', () => resetGame('pokemon'));
+
+        // Initial data load
+        loadData();
+    </script>
+</body>
+</html>
