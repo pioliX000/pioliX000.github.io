@@ -233,6 +233,7 @@
             <button id="select-league" class="selected">League of Legends</button>
             <button id="select-onepiece">One Piece</button>
             <button id="select-pokemon">Pokémon</button>
+            <button id="select-naruto">Naruto</button>
         </div>
 
         <div id="game-area-league" class="game-area active">
@@ -276,6 +277,20 @@
                 <p id="pokemon-no-solutions" class="no-solutions" style="display: none;">No solutions found matching the criteria.</p>
             </div>
         </div>
+
+        <div id="game-area-naruto" class="game-area">
+            <h2 class="text-2xl font-bold mb-4 text-center text-gray-800">Naruto Solver</h2>
+            <div class="input-grid" id="naruto-input-grid">
+                <!-- Inputs will be dynamically generated here -->
+            </div>
+            <button id="naruto-solve-button" class="solve-button">Find Solutions</button>
+            <button id="naruto-reset-button" class="reset-button">Reset</button>
+            <div id="naruto-solutions-area" class="solutions-area">
+                <h3>Possible Characters:</h3>
+                <div id="naruto-solution-list" class="solution-list"></div>
+                <p id="naruto-no-solutions" class="no-solutions" style="display: none;">No solutions found matching the criteria.</p>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -283,8 +298,23 @@
         let leagueData = [];
         let onePieceData = [];
         let pokemonData = [];
+        let narutoData = [];
+
         let onePieceArcs = [
             {from:1,to:7,value:"Romance Dawn"},{from:8,to:21,value:"Orange Town"},{from:22,to:41,value:"Syrup Village"},{from:42,to:68,value:"Baratie"},{from:69,to:95,value:"Arlong Park"},{from:96,to:100,value:"Loguetown"},{from:101,to:105,value:"Reverse Mountain"},{from:106,to:114,value:"Whisky Peak"},{from:115,to:129,value:"Little Garden"},{from:130,to:154,value:"Drum Island"},{from:155,to:217,value:"Arabasta"},{from:218,to:236,value:"Jaya"},{from:237,to:302,value:"Skypiea"},{from:303,to:321,value:"Long Ring\nLong Land"},{from:322,to:374,value:"Water 7"},{from:375,to:430,value:"Enies Lobby"},{from:431,to:441,value:"Post-Enies Lobby"},{from:442,to:489,value:"Thriller Bark"},{from:490,to:513,value:"Sabaody Archipelago"},{from:514,to:524,value:"Amazon Lily"},{from:525,to:549,value:"Impel Down"},{from:550,to:580,value:"Marineford"},{from:581,to:597,value:"Post-War"},{from:598,to:602,value:"Return to Sabaody"},{from:603,to:653,value:"Fish-Man Island"},{from:654,to:699,value:"Punk Hazard"},{from:700,to:801,value:"Dressrosa"},{from:802,to:824,value:"Zou"},{from:825,to:902,value:"Whole Cake Island"},{from:903,to:908,value:"Levely"},{from:909,to:1057,value:"Wano Country"},{from:1058,to:9999,value:"Final"}
+        ];
+        let narutoArcs = [
+            {from: 1, to: 19, value: "Prologue"}, {from: 20, to: 67, value: "Chūnin Exams"},
+            {from: 68, to: 80, value: "Konoha Crush"}, {from: 81, to: 100, value: "Search for Tsunade"},
+            {from: 101, to: 106, value: "Land of Tea Escort Mission"}, {from: 107, to: 135, value: "Sasuke Recovery Mission"},
+            {from: 136, to: 141, value: "Land of Rice Fields Investigation Mission"}, {from: 142, to: 147, value: "Mizuki Tracking Mission"},
+            {from: 148, to: 151, value: "Bikochu Search Mission"}, {from: 152, to: 157, value: "Kurosuki Family Removal Mission"},
+            {from: 159, to: 160, value: "Gosunkugi Capture Mission"}, {from: 162, to: 167, value: "Cursed Warrior Extermination Mission"},
+            {from: 169, to: 173, value: "Kaima Capture Mission"}, {from: 175, to: 176, value: "Buried Gold Excavation Mission"},
+            {from: 178, to: 183, value: "Star Guard Mission"}, {from: 187, to: 191, value: "Peddlers Escort Mission"},
+            {from: 195, to: 196, value: "Third Great Beast"}, {from: 197, to: 201, value: "Konoha Plans Recapture Mission"},
+            {from: 203, to: 207, value: "Yakumo Kurama Rescue Mission"}, {from: 209, to: 212, value: "Gantetsu Escort Mission"},
+            {from: 213, to: 215, value: "Menma Memory Search Mission"}, {from: 216, to: 220, value: "Sunagakure Support Mission"}
         ];
 
         // Define attributes for each game
@@ -319,6 +349,16 @@
                 { id: 'evolutionStage', label: 'Evolution Stage', type: 'number', key: 'evolutionStage' },
                 { id: 'height', label: 'Height (m)', type: 'number', key: 'height' },
                 { id: 'weight', label: 'Weight (kg)', type: 'number', key: 'weight' }
+            ],
+            naruto: [
+                { id: 'championName', label: 'Character Name', type: 'string', key: 'championName' },
+                { id: 'gender', label: 'Gender', type: 'string', key: 'gender', options: ['Male', 'Female', 'Other'] },
+                { id: 'affiliations', label: 'Affiliation(s)', type: 'array-string', key: 'affiliations' },
+                { id: 'jutsusTypes', label: 'Jutsu Type(s)', type: 'array-string', key: 'jutsusTypes' },
+                { id: 'kekkeiGenkais', label: 'Kekkei Genkai(s)', type: 'array-object-name', key: 'kekkeiGenkais' }, // Special type for array of objects
+                { id: 'natureTypes', label: 'Nature Type(s)', type: 'array-string', key: 'natureTypes' },
+                { id: 'classifications', label: 'Attributes', type: 'array-string', key: 'classifications' }, // Mapped to 'classifications'
+                { id: 'debutArc', label: 'Debut Arc', type: 'string', key: 'debut', options: narutoArcs.map(arc => arc.value) } // Map debut chapter to arc name
             ]
         };
 
@@ -326,30 +366,37 @@
         const selectLeagueButton = document.getElementById('select-league');
         const selectOnePieceButton = document.getElementById('select-onepiece');
         const selectPokemonButton = document.getElementById('select-pokemon');
+        const selectNarutoButton = document.getElementById('select-naruto');
 
         const gameAreaLeague = document.getElementById('game-area-league');
         const gameAreaOnePiece = document.getElementById('game-area-onepiece');
         const gameAreaPokemon = document.getElementById('game-area-pokemon');
+        const gameAreaNaruto = document.getElementById('game-area-naruto');
 
         const leagueInputGrid = document.getElementById('league-input-grid');
         const onePieceInputGrid = document.getElementById('onepiece-input-grid');
         const pokemonInputGrid = document.getElementById('pokemon-input-grid');
+        const narutoInputGrid = document.getElementById('naruto-input-grid');
 
         const leagueSolveButton = document.getElementById('league-solve-button');
         const onePieceSolveButton = document.getElementById('onepiece-solve-button');
         const pokemonSolveButton = document.getElementById('pokemon-solve-button');
+        const narutoSolveButton = document.getElementById('naruto-solve-button');
 
         const leagueResetButton = document.getElementById('league-reset-button');
         const onePieceResetButton = document.getElementById('onepiece-reset-button');
         const pokemonResetButton = document.getElementById('pokemon-reset-button');
+        const narutoResetButton = document.getElementById('naruto-reset-button');
 
         const leagueSolutionList = document.getElementById('league-solution-list');
         const onePieceSolutionList = document.getElementById('onepiece-solution-list');
         const pokemonSolutionList = document.getElementById('pokemon-solution-list');
+        const narutoSolutionList = document.getElementById('naruto-solution-list');
 
         const leagueNoSolutions = document.getElementById('league-no-solutions');
         const onePieceNoSolutions = document.getElementById('onepiece-no-solutions');
         const pokemonNoSolutions = document.getElementById('pokemon-no-solutions');
+        const narutoNoSolutions = document.getElementById('naruto-no-solutions');
 
         let currentActiveGame = 'league';
 
@@ -379,6 +426,9 @@
                     weight: pokemon.weight / 10 // Convert from hectograms to kilograms
                 }));
 
+                const narutoResponse = await fetch('naruto.json');
+                const narutoRawData = await narutoResponse.json();
+                narutoData = narutoRawData[0]; // Assuming the character data is the first array
 
                 console.log('Data loaded successfully!');
                 initGameUI('league'); // Initialize UI for League game by default
@@ -424,8 +474,8 @@
         }
 
         // Helper to get One Piece arc name from chapter number
-        function getArcNameByChapter(chapter) {
-            const arc = onePieceArcs.find(a => chapter >= a.from && chapter <= a.to);
+        function getArcNameByChapter(chapter, arcsData) {
+            const arc = arcsData.find(a => chapter >= a.from && chapter <= a.to);
             return arc ? arc.value : 'Unknown Arc';
         }
 
@@ -445,8 +495,8 @@
                 inputGroup.appendChild(label);
 
                 let inputElement;
-                // If it's an array-string type, it should be a text input for comma-separated values
-                if (attr.type === 'array-string') {
+                // If it's an array-string type or array-object-name, it should be a text input for comma-separated values
+                if (attr.type === 'array-string' || attr.type === 'array-object-name') {
                     inputElement = document.createElement('input');
                     inputElement.type = 'text';
                     inputElement.id = `${gameType}-${attr.id}-input`;
@@ -501,7 +551,7 @@
                 feedbackSelector.appendChild(redBtn);
 
                 // Add Higher/Lower buttons for number types AND for the specific 'firstArc' attribute
-                if (attr.type === 'number' || attr.id === 'firstArc') {
+                if (attr.type === 'number' || attr.id === 'firstArc' || attr.id === 'debutArc') {
                     const higherBtn = document.createElement('button');
                     higherBtn.textContent = 'Higher';
                     higherBtn.className = 'blue';
@@ -572,7 +622,8 @@
             const currentData = {
                 league: leagueData,
                 onepiece: onePieceData,
-                pokemon: pokemonData
+                pokemon: pokemonData,
+                naruto: narutoData
             }[gameType];
 
             const attributes = gameAttributes[gameType];
@@ -591,7 +642,7 @@
                         value: guessValue,
                         feedback: feedback,
                         type: attr.type,
-                        id: attr.id // Store the id to handle 'firstArc' specifically
+                        id: attr.id // Store the id to handle specific cases like 'firstArc' or 'debutArc'
                     });
                 }
             });
@@ -628,7 +679,30 @@
                             // Not in this arc, and not higher/lower
                             return !(targetChapter >= guessedArcFromChapter && targetChapter <= guessedArcToChapter);
                         }
-                    } else if (filter.type === 'string') {
+                    }
+                    // Special handling for Naruto 'debutArc' (which uses 'debut' key)
+                    else if (gameType === 'naruto' && filter.id === 'debutArc') {
+                        const targetChapter = item.debut;
+                        const guessedArc = narutoArcs.find(a => normalizeString(a.value) === normalizedGuess);
+
+                        if (!guessedArc) {
+                            return false; // If the guessed arc name isn't found, it's not a match
+                        }
+
+                        const guessedArcFromChapter = guessedArc.from;
+                        const guessedArcToChapter = guessedArc.to;
+
+                        if (filter.feedback === 'green') {
+                            return targetChapter >= guessedArcFromChapter && targetChapter <= guessedArcToChapter;
+                        } else if (filter.feedback === 'higher') {
+                            return targetChapter > guessedArcToChapter;
+                        } else if (filter.feedback === 'lower') {
+                            return targetChapter < guessedArcFromChapter;
+                        } else if (filter.feedback === 'red') {
+                            return !(targetChapter >= guessedArcFromChapter && targetChapter <= guessedArcToChapter);
+                        }
+                    }
+                    else if (filter.type === 'string') {
                         const normalizedTarget = normalizeString(targetValue);
                         if (filter.feedback === 'green') {
                             return normalizedTarget === normalizedGuess;
@@ -653,6 +727,18 @@
                         } else if (filter.feedback === 'red') {
                             // None of the guessed values are in target
                             return !arrayContainsAny(targetArray, guessArray);
+                        }
+                    } else if (filter.type === 'array-object-name') {
+                        // For array of objects (like Kekkei Genkai), extract names first
+                        const guessArray = filter.value.split(',').map(normalizeString).filter(s => s.length > 0);
+                        const targetNames = Array.isArray(targetValue) ? targetValue.map(obj => normalizeString(obj.name)) : [];
+
+                        if (filter.feedback === 'green') {
+                            return compareArrays(targetNames, guessArray);
+                        } else if (filter.feedback === 'yellow') {
+                            return arrayContainsAny(targetNames, guessArray) && !compareArrays(targetNames, guessArray);
+                        } else if (filter.feedback === 'red') {
+                            return !arrayContainsAny(targetNames, guessArray);
                         }
                     } else if (filter.type === 'number') {
                         const targetNum = parseFloat(targetValue);
@@ -703,16 +789,19 @@
         selectLeagueButton.addEventListener('click', () => switchGame('league'));
         selectOnePieceButton.addEventListener('click', () => switchGame('onepiece'));
         selectPokemonButton.addEventListener('click', () => switchGame('pokemon'));
+        selectNarutoButton.addEventListener('click', () => switchGame('naruto'));
 
         // Event Listeners for solve buttons
         leagueSolveButton.addEventListener('click', () => solveGame('league'));
         onePieceSolveButton.addEventListener('click', () => solveGame('onepiece'));
         pokemonSolveButton.addEventListener('click', () => solveGame('pokemon'));
+        narutoSolveButton.addEventListener('click', () => solveGame('naruto'));
 
         // Event Listeners for reset buttons
         leagueResetButton.addEventListener('click', () => resetGame('league'));
         onePieceResetButton.addEventListener('click', () => resetGame('onepiece'));
         pokemonResetButton.addEventListener('click', () => resetGame('pokemon'));
+        narutoResetButton.addEventListener('click', () => resetGame('naruto'));
 
         // Initial data load
         loadData();
